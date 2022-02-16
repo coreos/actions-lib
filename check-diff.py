@@ -9,6 +9,13 @@ import itertools
 import os.path
 import sys
 
+def annotate_file(output, path, severity, message):
+    print(
+        f'::{severity} file={path},title=File::{message}',
+        file=output
+    )
+
+
 def annotate_line(output, path, start_line, end_line, severity, message):
     '''start_line is zero-indexed; end_line is zero-indexed and points to
     the first line not matched.'''
@@ -65,11 +72,19 @@ def recursive_diff(left_root, right_root, subpath, severity):
             right_path = os.path.join(dirpath, filename)
             canon_path = os.path.relpath(right_path, right_root)
             left_path = os.path.join(left_root, canon_path)
-            with open(left_path) as fh:
-                left = fh.readlines()
+            try:
+                with open(left_path) as fh:
+                    left = fh.readlines()
+            except FileNotFoundError:
+                annotate_file(sys.stdout, canon_path, severity, 'Unexpected file addition')
+                ok = False
+                continue
             with open(right_path) as fh:
                 right = fh.readlines()
             ok = diff(canon_path, left, right, severity) and ok
+
+
+
     return ok
 
 
