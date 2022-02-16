@@ -72,17 +72,21 @@ def recursive_diff(left_root, right_root, subpath, severity):
     return ok
 
 
-def selftest():
-    left = ['one', 'two', 'three', 'four', 'five', 'seven', 'eight', 'nine']
-    right = ['one', 'two', 'none', 'not', 'four', 'five', 'six', 'seven', 'nine']
+def selftest_one(left, right, expected):
     buf = io.StringIO()
     diff('a/b/c', left, right, 'alert!', buf)
-    expected = '''::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change
-::alert! file=a/b/c,line=7,endLine=7,title=Line 7::Unexpected addition
-::alert! file=a/b/c,line=8,endLine=8,title=Line 8::Unexpected removal on next line
-'''
     if buf.getvalue() != expected:
         raise Exception(f'Selftest returned unexpected value:\n{buf.getvalue()}')
+
+
+def selftest():
+    selftest_one(
+        ['one', 'two', 'three', 'four', 'five', 'seven', 'eight', 'nine'],
+        ['one', 'two', 'none', 'not', 'four', 'five', 'six', 'seven', 'nine'],
+        '''::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change
+::alert! file=a/b/c,line=7,endLine=7,title=Line 7::Unexpected addition
+::alert! file=a/b/c,line=8,endLine=8,title=Line 8::Unexpected removal on next line
+''')
 
 
 def main():
