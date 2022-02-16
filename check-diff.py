@@ -25,7 +25,11 @@ def annotate(output, path, start_line, end_line, severity, message):
 def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
     seq = difflib.SequenceMatcher(a=left_lines, b=right_lines, autojunk=False)
     ok = True
-    for first, second in itertools.pairwise(seq.get_matching_blocks()):
+    matching = seq.get_matching_blocks()
+    # Add sentinel at the beginning, corresponding to the sentinel at the
+    # end, to simplify handling of disjoint files where one of them is empty
+    matching.insert(0, difflib.Match(0, 0, 0))
+    for first, second in itertools.pairwise(matching):
         ok = False
         left_end = first.a + first.size
         right_end = first.b + first.size
@@ -84,6 +88,27 @@ def selftest():
 ::alert! file=a/b/c,line=7,endLine=7,title=Line 7::Unexpected addition
 ::alert! file=a/b/c,line=8,endLine=8,title=Line 8::Unexpected removal on next line
 ''')
+    # Check disjoint files
+    selftest_one(
+        ['a', 'b', 'c'],
+        ['d', 'e', 'f'],
+        '::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected change\n'
+    )
+    selftest_one(
+        ['a', 'b', 'c'],
+        [],
+        '::alert! file=a/b/c,line=0,endLine=0,title=Line 0::Unexpected removal on next line\n'
+    )
+    selftest_one(
+        [],
+        ['d', 'e', 'f'],
+        '::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected addition\n'
+    )
+    selftest_one(
+        [],
+        [],
+        '',
+    )
     # Check EOF behavior
     selftest_one(
         ['one', 'two', 'three', 'four'],
