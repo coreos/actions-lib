@@ -26,9 +26,6 @@ def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
     seq = difflib.SequenceMatcher(a=left_lines, b=right_lines, autojunk=False)
     ok = True
     for first, second in itertools.pairwise(seq.get_matching_blocks()):
-        if second.size == 0:
-            # sentinel value
-            break
         ok = False
         left_end = first.a + first.size
         right_end = first.b + first.size
@@ -38,7 +35,7 @@ def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
             annotate(output, canon_path, right_end, right_start, severity, 'Unexpected change')
         elif right_end != right_start:
             annotate(output, canon_path, right_end, right_start, severity, 'Unexpected addition')
-        else:
+        elif left_end != left_start:
             # message before the removal is a bit more obvious than after it
             annotate(output, canon_path, right_start - 1, right_start, severity, 'Unexpected removal on next line')
     return ok
@@ -87,6 +84,22 @@ def selftest():
 ::alert! file=a/b/c,line=7,endLine=7,title=Line 7::Unexpected addition
 ::alert! file=a/b/c,line=8,endLine=8,title=Line 8::Unexpected removal on next line
 ''')
+    # Check EOF behavior
+    selftest_one(
+        ['one', 'two', 'three', 'four'],
+        ['one', 'two', 'five', 'six'],
+        '::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change\n'
+    )
+    selftest_one(
+        ['one', 'two'],
+        ['one', 'two', 'three', 'four'],
+        '::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected addition\n'
+    )
+    selftest_one(
+        ['one', 'two', 'three', 'four'],
+        ['one', 'two'],
+        '::alert! file=a/b/c,line=2,endLine=2,title=Line 2::Unexpected removal on next line\n'
+    )
 
 
 def main():
