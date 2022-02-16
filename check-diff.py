@@ -9,7 +9,7 @@ import itertools
 import os.path
 import sys
 
-def annotate(output, path, start_line, end_line, severity, message):
+def annotate_line(output, path, start_line, end_line, severity, message):
     '''start_line is zero-indexed; end_line is zero-indexed and points to
     the first line not matched.'''
     if end_line == start_line + 1:
@@ -36,12 +36,12 @@ def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
         left_start = second.a
         right_start = second.b
         if right_end != right_start and left_end != left_start:
-            annotate(output, canon_path, right_end, right_start, severity, 'Unexpected change')
+            annotate_line(output, canon_path, right_end, right_start, severity, 'Unexpected change')
         elif right_end != right_start:
-            annotate(output, canon_path, right_end, right_start, severity, 'Unexpected addition')
+            annotate_line(output, canon_path, right_end, right_start, severity, 'Unexpected addition')
         elif left_end != left_start:
             # message before the removal is a bit more obvious than after it
-            annotate(output, canon_path, right_start - 1, right_start, severity, 'Unexpected removal on next line')
+            annotate_line(output, canon_path, right_start - 1, right_start, severity, 'Unexpected removal on next line')
     return ok
 
 
