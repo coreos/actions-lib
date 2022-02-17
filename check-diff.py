@@ -53,15 +53,16 @@ def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
 
 
 def recursive_diff(left_root, right_root, subpath, severity):
-    # this ignores files that are only in the left root
+    def handle_error(e):
+        raise e
+
     subroot = os.path.join(right_root, subpath)
     if os.path.isdir(subroot):
-        def handle_error(e):
-            raise e
         iter = os.walk(subroot, onerror=handle_error)
     else:
         iter = [(os.path.dirname(subroot), [], [os.path.basename(subroot)])]
 
+    # walk right tree
     ok = True
     for (dirpath, dirnames, filenames) in iter:
         if os.path.relpath(dirpath, right_root) == '.git':
@@ -83,7 +84,20 @@ def recursive_diff(left_root, right_root, subpath, severity):
                 right = fh.readlines()
             ok = diff(canon_path, left, right, severity) and ok
 
-
+    # check left tree for files missing from right
+    subroot = os.path.join(left_root, subpath)
+    for (dirpath, dirnames, filenames) in os.walk(subroot, onerror=handle_error):
+        if os.path.relpath(dirpath, left_root) == '.git':
+            # stop descent and ignore
+            dirnames[:] = []
+            continue
+        for filename in filenames:
+            left_path = os.path.join(dirpath, filename)
+            canon_path = os.path.relpath(left_path, left_root)
+            right_path = os.path.join(right_root, canon_path)
+            if not os.path.isfile(right_path):
+                annotate_file(sys.stdout, canon_path, severity, 'Unexpected file removal')
+                ok = False
 
     return ok
 
