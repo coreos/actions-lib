@@ -37,18 +37,20 @@ def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
     # end, to simplify handling of disjoint files where one of them is empty
     matching.insert(0, difflib.Match(0, 0, 0))
     for first, second in itertools.pairwise(matching):
-        ok = False
         left_end = first.a + first.size
         right_end = first.b + first.size
         left_start = second.a
         right_start = second.b
         if right_end != right_start and left_end != left_start:
             annotate_line(output, canon_path, right_end, right_start, severity, 'Unexpected change')
+            ok = False
         elif right_end != right_start:
             annotate_line(output, canon_path, right_end, right_start, severity, 'Unexpected addition')
+            ok = False
         elif left_end != left_start:
             # message before the removal is a bit more obvious than after it
             annotate_line(output, canon_path, right_start - 1, right_start, severity, 'Unexpected removal on next line')
+            ok = False
     return ok
 
 
