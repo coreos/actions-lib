@@ -1,0 +1,101 @@
+name: Build container
+description: Build and optionally push a container image
+inputs:
+  arches:
+    description: Space-separated list of Go-style architecture names
+    default: amd64 arm64
+    required: false
+  context:
+    description: Build context
+    default: .
+    required: false
+  credentials:
+    description: Contents of ~/.docker/config.json for pushing
+    default:
+    required: false
+  file:
+    description: Path to Dockerfile
+    default: Dockerfile
+    required: false
+  latest-branch:
+    description: Branch to tag with "latest"
+    default: main
+    required: false
+  pr-arches:
+    description: Space-separated list of architectures to build for PRs
+    default:
+    required: false
+  push:
+    description: Optional repository to push to (ignored for PR builds)
+    default:
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Compute settings
+      shell: bash
+      run: |
+        if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+            tag="${{ inputs.push }}:${GITHUB_REF#refs/heads/}"
+            arches="${{ inputs.arches }}"
+        elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${{ inputs.push }}:${GITHUB_REF#refs/tags/}"
+            arches="${{ inputs.arches }}"
+        elif [[ "${GITHUB_REF}" == refs/pull/* ]]; then
+            # Don't push anywhere
+            tag=
+            arches="${{ inputs.pr-arches != '' && inputs.pr-arches || inputs.arches }}"
+        else
+            echo "Unknown ref: ${GITHUB_REF}"
+            exit 1
+        fi
+
+        platforms=
+        for arch in $arches; do
+            platforms="$platforms,linux/$arch"
+        done
+        platforms="${platforms##,}"
+
+        echo "Build platforms: $platforms"
+        if [ -n "$tag" ]; then
+            echo "Destination tag: $tag"
+        else
+            echo "Skipping container push"
+        fi
+
+        cat >> $GITHUB_ENV <<EOF
+        CONTAINER_TAG=$tag
+        CONTAINER_PLATFORMS=$platforms
+        EOF
+    - name: Install container build dependencies
+      if: "env.CONTAINER_PLATFORMS != 'linux/amd64'"
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install qemu-user-static
+    - name: Build container
+      shell: bash
+      run: |
+        set -x
+        podman build ${CONTAINER_TAG:+--manifest "${CONTAINER_TAG}"} \
+            --platform="${CONTAINER_PLATFORMS}" -f "${{ inputs.file }}" \
+            "${{ inputs.context }}"
+    - name: Push container
+      if: "env.CONTAINER_TAG != ''"
+      shell: bash
+      run: |
+        mkdir -p ~/.docker
+        cat > ~/.docker/config.json <<EOF
+        ${{ inputs.credentials }}
+        EOF
+
+        echo "==== Pushing ${CONTAINER_TAG}"
+        podman manifest push "${CONTAINER_TAG}" "${CONTAINER_TAG}"
+        if [[ "${GITHUB_REF}" == "refs/heads/${{ inputs.latest-branch }}" ]]; then
+            echo "==== Pushing to latest tag"
+            podman manifest push "${CONTAINER_TAG}" "${{ inputs.push }}:latest"
+        fi
+    - name: Remove credentials
+      if: ${{ always() }}
+      shell: bash
+      run: rm -f ~/.docker/config.json
