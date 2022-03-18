@@ -1,5 +1,5 @@
 ---
-name: Run self-test
+name: Tests
 on:
   push:
     branches: [main]
@@ -9,12 +9,12 @@ permissions:
   contents: read
 
 jobs:
-  stream-diff:
-    name: Run self-test
+  check-diff:
+    name: check-diff
     runs-on: ubuntu-latest
     container: registry.fedoraproject.org/fedora:latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
       - name: Run self-test
-        run: ./check-diff.py --selftest .
+        run: check-diff/check-diff.py --selftest .
