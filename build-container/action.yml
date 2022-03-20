@@ -26,7 +26,7 @@ inputs:
     default:
     required: false
   push:
-    description: Optional repository to push to (ignored for PR builds)
+    description: Optional space-separated list of repositories to push to (ignored for PR builds)
     default:
     required: false
 runs:
@@ -36,19 +36,30 @@ runs:
       shell: bash
       run: |
         if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
-            tag="${{ inputs.push }}:${GITHUB_REF#refs/heads/}"
+            tags="${GITHUB_REF#refs/heads/}"
+            if [[ "$tags" == "${{ inputs.latest-branch }}" ]]; then
+                tags="$tags latest"
+            fi
             arches="${{ inputs.arches }}"
         elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag="${{ inputs.push }}:${GITHUB_REF#refs/tags/}"
+            tags="${GITHUB_REF#refs/tags/}"
             arches="${{ inputs.arches }}"
         elif [[ "${GITHUB_REF}" == refs/pull/* ]]; then
             # Don't push anywhere
-            tag=
+            tags=
             arches="${{ inputs.pr-arches != '' && inputs.pr-arches || inputs.arches }}"
         else
             echo "Unknown ref: ${GITHUB_REF}"
             exit 1
         fi
+
+        dests=
+        for repo in ${{ inputs.push }}; do
+            for tag in $tags; do
+                dests="$dests $repo:$tag"
+            done
+        done
+        dests="${dests## }"
 
         platforms=
         for arch in $arches; do
@@ -57,14 +68,14 @@ runs:
         platforms="${platforms##,}"
 
         echo "Build platforms: $platforms"
-        if [ -n "$tag" ]; then
-            echo "Destination tag: $tag"
+        if [ -n "$dests" ]; then
+            echo "Push destinations: $dests"
         else
             echo "Skipping container push"
         fi
 
         cat >> $GITHUB_ENV <<EOF
-        CONTAINER_TAG=$tag
+        CONTAINER_DESTS=$dests
         CONTAINER_PLATFORMS=$platforms
         EOF
     - name: Install container build dependencies
@@ -76,12 +87,12 @@ runs:
     - name: Build container
       shell: bash
       run: |
+        podman manifest rm build 2>/dev/null ||:
         set -x
-        podman build ${CONTAINER_TAG:+--manifest "${CONTAINER_TAG}"} \
-            --platform="${CONTAINER_PLATFORMS}" -f "${{ inputs.file }}" \
-            "${{ inputs.context }}"
+        podman build --manifest build --platform "${CONTAINER_PLATFORMS}" \
+            -f "${{ inputs.file }}" "${{ inputs.context }}"
     - name: Push container
-      if: "env.CONTAINER_TAG != ''"
+      if: "env.CONTAINER_DESTS != ''"
       shell: bash
       run: |
         mkdir -p ~/.docker
@@ -89,12 +100,10 @@ runs:
         ${{ inputs.credentials }}
         EOF
 
-        echo "==== Pushing ${CONTAINER_TAG}"
-        podman manifest push "${CONTAINER_TAG}" "${CONTAINER_TAG}"
-        if [[ "${GITHUB_REF}" == "refs/heads/${{ inputs.latest-branch }}" ]]; then
-            echo "==== Pushing to latest tag"
-            podman manifest push "${CONTAINER_TAG}" "${{ inputs.push }}:latest"
-        fi
+        for dest in ${CONTAINER_DESTS}; do
+            echo "==== Pushing $dest"
+            podman manifest push build "$dest"
+        done
     - name: Remove credentials
       if: ${{ always() }}
       shell: bash

@@ -32,6 +32,7 @@ If `push` is specified, and the action is not running from a PR, the container i
     # Default: <value of arches setting>
     pr-arches: ''
 
-    # Optional repository to push to (ignored for PR builds)
+    # Optional space-separated list of repositories to push to
+    # (ignored for PR builds)
     push: ''
 ```
