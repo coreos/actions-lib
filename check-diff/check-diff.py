@@ -14,6 +14,8 @@ def annotate_file(output, path, severity, message):
         f'::{severity} file={path},title=File::{message}',
         file=output
     )
+    # for CI logs
+    print(f'{" " * len(severity)}  \\ {path}', file=output)
 
 
 def annotate_line(output, path, start_line, end_line, severity, message):
@@ -27,6 +29,8 @@ def annotate_line(output, path, start_line, end_line, severity, message):
         f'::{severity} file={path},line={start_line + 1},endLine={end_line},title={title}::{message}',
         file=output
     )
+    # for CI logs
+    print(f'{" " * len(severity)}  \\ {path} {title.lower()}', file=output)
 
 
 def diff(canon_path, left_lines, right_lines, severity, output=sys.stdout):
@@ -116,24 +120,33 @@ def selftest():
         ['one', 'two', 'three', 'four', 'five', 'seven', 'eight', 'nine'],
         ['one', 'two', 'none', 'not', 'four', 'five', 'six', 'seven', 'nine'],
         '''::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change
+        \\ a/b/c lines 3-4
 ::alert! file=a/b/c,line=7,endLine=7,title=Line 7::Unexpected addition
+        \\ a/b/c line 7
 ::alert! file=a/b/c,line=8,endLine=8,title=Line 8::Unexpected removal on next line
+        \\ a/b/c line 8
 ''')
     # Check disjoint files
     selftest_one(
         ['a', 'b', 'c'],
         ['d', 'e', 'f'],
-        '::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected change\n'
+        '''::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected change
+        \\ a/b/c lines 1-3
+'''
     )
     selftest_one(
         ['a', 'b', 'c'],
         [],
-        '::alert! file=a/b/c,line=0,endLine=0,title=Line 0::Unexpected removal on next line\n'
+        '''::alert! file=a/b/c,line=0,endLine=0,title=Line 0::Unexpected removal on next line
+        \\ a/b/c line 0
+'''
     )
     selftest_one(
         [],
         ['d', 'e', 'f'],
-        '::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected addition\n'
+        '''::alert! file=a/b/c,line=1,endLine=3,title=Lines 1-3::Unexpected addition
+        \\ a/b/c lines 1-3
+'''
     )
     selftest_one(
         [],
@@ -144,17 +157,23 @@ def selftest():
     selftest_one(
         ['one', 'two', 'three', 'four'],
         ['one', 'two', 'five', 'six'],
-        '::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change\n'
+        '''::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected change
+        \\ a/b/c lines 3-4
+'''
     )
     selftest_one(
         ['one', 'two'],
         ['one', 'two', 'three', 'four'],
-        '::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected addition\n'
+        '''::alert! file=a/b/c,line=3,endLine=4,title=Lines 3-4::Unexpected addition
+        \\ a/b/c lines 3-4
+'''
     )
     selftest_one(
         ['one', 'two', 'three', 'four'],
         ['one', 'two'],
-        '::alert! file=a/b/c,line=2,endLine=2,title=Line 2::Unexpected removal on next line\n'
+        '''::alert! file=a/b/c,line=2,endLine=2,title=Line 2::Unexpected removal on next line
+        \\ a/b/c line 2
+'''
     )
 
 
