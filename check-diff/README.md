@@ -4,7 +4,7 @@ This is a GitHub Action for comparing the diff of a PR against an expected diff,
 
 This is useful as an aid to reviewing automatically-generated PRs that contain a lot of tedious changes.  If a workflow can generate base and patch directories that abstract away the tedious changes, this Action will compare them and flag any remaining changes for manual review.
 
-If any such changes are found, the Action will fail. This isn't necessarily cause for concern, since the changes may be benign; they just require manual review. Consider running the Action in a non-required workflow, or setting `continue-on-error` on the job step.
+If any such changes are found, the Action will fail. This isn't necessarily cause for concern, since the changes may be benign; they just require manual review. Consider running the Action in a non-required workflow.  You can also set `continue-on-error` on the job step, which will ignore the failure and report green.
 
 ## Example
 
