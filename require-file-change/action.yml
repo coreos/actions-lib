@@ -34,7 +34,9 @@ runs:
             jq '.files[] | select(.filename == "${{ inputs.path }}")')
         if [ -z "${diffinfo}" ]; then
             echo "Found no changes to ${{ inputs.path }}."
-            echo "To ignore, add ${{ inputs.override-label }} label to PR."
+            if [ -n "${{ inputs.override-label }}" ]; then
+                echo "To ignore, add ${{ inputs.override-label }} label to PR."
+            fi
             exit 1
         fi
         echo "Found change to ${{ inputs.path }}."
