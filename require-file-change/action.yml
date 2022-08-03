@@ -20,8 +20,13 @@ runs:
       run: |
         set -euo pipefail
         if [ -n "${{ inputs.override-label }}" ]; then
-            label=$(echo '${{ toJSON(github.event.pull_request.labels) }}' |
-                    jq '.[] | select(.name == "${{ inputs.override-label }}")')
+            # Don't trust the label list in the event metadata, since runs
+            # can be scheduled out of order and the list might be stale.
+            label=$(curl --no-progress-meter \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: token ${{ inputs.token || github.token }}" \
+                "${{ github.event.pull_request.url }}" |
+                jq '.labels[] | select(.name == "${{ inputs.override-label }}")')
             if [ -n "${label}" ]; then
                 echo "PR has ${{ inputs.override-label }} label; skipping"
                 exit 0
