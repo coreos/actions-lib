@@ -29,13 +29,20 @@ inputs:
     description: Optional space-separated list of repositories to push to (ignored for PR builds)
     default:
     required: false
+  tags:
+    description: Optional space-separated list of tags to push to (overrides PR detection)
+    default:
+    required: false
 runs:
   using: composite
   steps:
     - name: Compute settings
       shell: bash
       run: |
-        if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+        if [[ -n "${{ inputs.tags }}" ]]; then
+            tags="${{ inputs.tags }}"
+            arches="${{ inputs.arches }}"
+        elif [[ "${GITHUB_REF}" == refs/heads/* ]]; then
             tags="${GITHUB_REF#refs/heads/}"
             if [[ "$tags" == "${{ inputs.latest-branch }}" ]]; then
                 tags="$tags latest"
