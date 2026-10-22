@@ -9,6 +9,15 @@ permissions:
   contents: read
 
 jobs:
+  require-file-change:
+    name: require-file-change
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+      - name: Run self-test
+        run: require-file-change/test.sh
+
   check-diff:
     name: check-diff
     runs-on: ubuntu-latest
