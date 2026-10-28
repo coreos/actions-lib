@@ -1,13 +1,19 @@
 name: Require file change
-description: Fail unless a specified file is changed by a PR
+description: Fail unless a specified file or matching path is changed by a PR
 
 inputs:
   override-label:
     description: Skip check if the PR has this label
     required: false
   path:
-    description: Path to file
-    required: true
+    description: Exact path to file (mutually exclusive with path-regex)
+    required: false
+  path-regex:
+    description: Regular expression matching file paths (mutually exclusive with path)
+    required: false
+  status:
+    description: Optional pull-request file status to match
+    required: false
   token:
     description: Personal access token
     required: false
@@ -15,33 +21,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Check for ${{ inputs.path }}
+    - name: Check for required file change
       shell: bash
-      run: |
-        set -euo pipefail
-        if [ -n "${{ inputs.override-label }}" ]; then
-            # Don't trust the label list in the event metadata, since runs
-            # can be scheduled out of order and the list might be stale.
-            label=$(curl --no-progress-meter \
-                -H "Accept: application/vnd.github+json" \
-                -H "Authorization: token ${{ inputs.token || github.token }}" \
-                "${{ github.event.pull_request.url }}" |
-                jq '.labels[] | select(.name == "${{ inputs.override-label }}")')
-            if [ -n "${label}" ]; then
-                echo "PR has ${{ inputs.override-label }} label; skipping"
-                exit 0
-            fi
-        fi
-        diffinfo=$(curl --no-progress-meter \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token ${{ inputs.token || github.token }}" \
-            "https://api.github.com/repos/${{ github.repository }}/compare/${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" |
-            jq '.files[] | select(.filename == "${{ inputs.path }}")')
-        if [ -z "${diffinfo}" ]; then
-            echo "Found no changes to ${{ inputs.path }}."
-            if [ -n "${{ inputs.override-label }}" ]; then
-                echo "To ignore, add ${{ inputs.override-label }} label to PR."
-            fi
-            exit 1
-        fi
-        echo "Found change to ${{ inputs.path }}."
+      env:
+        FILE_PATH: ${{ inputs.path }}
+        PATH_REGEX: ${{ inputs.path-regex }}
+        FILE_STATUS: ${{ inputs.status }}
+        OVERRIDE_LABEL: ${{ inputs.override-label }}
+        TOKEN: ${{ inputs.token || github.token }}
+        PR_URL: ${{ github.event.pull_request.url }}
+      run: "${{ github.action_path }}/check.sh"
